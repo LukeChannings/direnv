@@ -40,11 +40,12 @@ func cmdDotEnvAction(_ Env, args []string) (err error) {
 		target = ".env"
 	}
 
-	if file, err = os.Open(target); err != nil {
+	file, err = os.Open(target)
+	defer file.Close()
+
+	if err != nil {
 		return
 	}
-
-	defer file.Close()
 
     var data strings.Builder
 
