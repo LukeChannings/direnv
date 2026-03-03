@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/direnv/direnv/v2/pkg/dotenv"
 	"os"
+	"bufio"
+	"strings"
 	"path/filepath"
 )
 
@@ -38,10 +40,23 @@ func cmdDotEnvAction(_ Env, args []string) (err error) {
 		target = ".env"
 	}
 
-	var data []byte
-	if data, err = os.ReadFile(target); err != nil {
+	if file, err = os.Open(target); err != nil {
 		return
 	}
+
+	defer file.Close()
+
+    var data strings.Builder
+
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        data.WriteString(scanner.Text())
+        data.WriteString("\n")
+    }
+
+    if err := scanner.Err(); err != nil {
+        return
+    }
 
 	// Set PWD env var to the directory the .env file resides in. This results
 	// in the least amount of surprise, as a dotenv file is most often defined
@@ -55,7 +70,7 @@ func cmdDotEnvAction(_ Env, args []string) (err error) {
 		return err
 	}
 
-	newenv, err = dotenv.Parse(string(data))
+	newenv, err = dotenv.Parse(data)
 	if err != nil {
 		return err
 	}
