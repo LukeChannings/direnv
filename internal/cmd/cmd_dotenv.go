@@ -1,12 +1,13 @@
 package cmd
 
 import (
-	"fmt"
-	"github.com/direnv/direnv/v2/pkg/dotenv"
-	"os"
 	"bufio"
-	"strings"
+	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/direnv/direnv/v2/pkg/dotenv"
 )
 
 // CmdDotEnv is `direnv dotenv [SHELL [PATH_TO_DOTENV]]`
@@ -26,6 +27,7 @@ func cmdDotEnvAction(_ Env, args []string) (err error) {
 	var newenv Env
 	var target string
 
+	// NOTE: adjust indexing here if your framework passes args differently.
 	if len(args) > 1 {
 		shell = DetectShell(args[1])
 	} else {
@@ -35,34 +37,27 @@ func cmdDotEnvAction(_ Env, args []string) (err error) {
 	if len(args) > 2 {
 		target = args[2]
 	}
-
 	if target == "" {
 		target = ".env"
 	}
 
-	file, err = os.Open(target)
+	file, err := os.Open(target)
+	if err != nil {
+		return err
+	}
 	defer file.Close()
 
-	if err != nil {
-		return
+	var data strings.Builder
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		data.WriteString(scanner.Text())
+		data.WriteString("\n")
+	}
+	if scanErr := scanner.Err(); scanErr != nil {
+		return scanErr
 	}
 
-    var data strings.Builder
-
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        data.WriteString(scanner.Text())
-        data.WriteString("\n")
-    }
-
-    if err := scanner.Err(); err != nil {
-        return
-    }
-
-	// Set PWD env var to the directory the .env file resides in. This results
-	// in the least amount of surprise, as a dotenv file is most often defined
-	// in the same directory it's loaded from, so referring to PWD should match
-	// the directory of the .env file.
+	// Set PWD env var to the directory the .env file resides in.
 	path, err := filepath.Abs(target)
 	if err != nil {
 		return err
@@ -71,7 +66,7 @@ func cmdDotEnvAction(_ Env, args []string) (err error) {
 		return err
 	}
 
-	newenv, err = dotenv.Parse(data)
+	newenv, err = dotenv.Parse(data.String())
 	if err != nil {
 		return err
 	}
@@ -82,5 +77,5 @@ func cmdDotEnvAction(_ Env, args []string) (err error) {
 	}
 	fmt.Println(str)
 
-	return
+	return nil
 }
